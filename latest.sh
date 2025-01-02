@@ -1,1 +1,1 @@
-~/GitHub/toddsharpe/UBuild/Src/UBuild/bin/Debug/net7.0/UBuild $@
+~/GitHub/toddsharpe/UBuild/Src/UBuild/bin/Debug/net8.0/UBuild $@

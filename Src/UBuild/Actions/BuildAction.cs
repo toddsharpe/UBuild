@@ -3,58 +3,63 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using UBuild.Configs;
 using UBuild.Tasks;
 using UBuild.Models;
 using System.Diagnostics;
 using System.Reflection;
+using Environment = UBuild.Models.Environment;
 
 namespace UBuild.Actions
 {
 	internal class BuildAction : IAction
 	{
-		public bool Verbose { private get; set; }
-		private readonly Sources _sources;
-		private readonly Target _target;
-		private readonly Toolchain _toolchain;
-		public string OutputFile => _target.BinFile + _toolchain.Ext;
-
-		internal BuildAction(Sources sources, Target target, Toolchain toolchain)
+		enum SourceType
 		{
-			_sources = sources;
-			_target = target;
+			C,
+			Cpp,
+			Asm
+		}
+
+		private static readonly Dictionary<SourceType, List<string>> SourceExtensions = new Dictionary<SourceType, List<string>>
+		{
+			{ SourceType.C, new List<string> { ".c" } },
+			{ SourceType.Cpp, new List<string> { ".cc", ".cpp" } },
+			{ SourceType.Asm, new List<string> { ".s" } },
+		};
+
+		private readonly Environment _env;
+		private readonly Executable _exe;
+		private readonly Toolchain _toolchain;
+		public string OutputFile => Path.Combine(_exe.OutDir, _exe.Name + _toolchain.Ext);
+
+		internal BuildAction(Environment env, Executable exe, Toolchain toolchain)
+		{
+			_env = env;
+			_exe = exe;
 			_toolchain = toolchain;
 		}
 
-		public ActionResult Run()
+		public ActionResult Run(bool verbose)
 		{
-			//Get toolchain
-			if (!_target.CompatibleWith(_toolchain))
-			{
-				Console.WriteLine("Skipping {0}, Toolchain differs {1}, {2}", _target.Config.Name, _target.Config.Toolchain, _toolchain.Config.Name);
-				return ActionResult.Skipped;
-			}
-
-			Console.WriteLine("Building {0} for {1}", _target.Config.Name, _toolchain.Config.Name);
+			Console.WriteLine("Building {0} for {1}", _exe.Name, _toolchain.Name);
 
 			List<ITask> tasks = new List<ITask>();
 			List<string> objects = new List<string>();
 
-			//Build list of includes
-			List<string> includes = new List<string>();
-			foreach (string includeDir in _target.Config.IncludeDirs)
+			//Group files by type
+			Dictionary<string, List<string>> groups = ExpandedSources(_exe.Sources, _env.SourcesDirectory).GroupBy(i => Path.GetExtension(i)).ToDictionary(i => i.Key, i => i.ToList());
+			Dictionary<SourceType, List<string>> sources = SourceExtensions.ToDictionary(i => i.Key, i => i.Value.SelectMany(j =>
 			{
-				//Get absolute path
-				string path = _target.ResolveSourcePath(includeDir);
-				includes.Add(path);
-			}
+				bool found = groups.TryGetValue(j, out List<string> entries);
+				return found ? entries : new List<string>();
+			}).ToList());
 
 			//Build C sources
-			foreach (string source in _target.Config.CSources)
+			foreach (string source in sources[SourceType.C])
 			{
 				//Get absolute paths
-				string input = _target.ResolveSourcePath(source);
-				string output = _sources.GetObjectPath(input);
+				string input = _env.GetSourcePath(source);
+				string output = _env.GetObjectPath(source);
 				objects.Add(output);
 
 				List<string> flags = new List<string>
@@ -62,30 +67,30 @@ namespace UBuild.Actions
 					"-c",
 					input,
 					$"-o {output}",
-					$"-I {_sources.Config.SourcesDir}"
+					$"-I {_env.SourcesDirectory}"
 				};
 
 				//Add include dirs
-				foreach (string include in includes)
+				foreach (string include in _exe.IncludeDirs)
 					flags.Add($"-I {include}");
 
 				//Add defines
-				foreach (string define in _target.Config.Defines)
+				foreach (string define in _exe.Defines)
 					flags.Add($"-D {define}");
 
 				//Add flags
-				flags.AddRange(_target.Config.Flags);
-				flags.AddRange(_toolchain.Config.Flags);
+				flags.AddRange(_exe.Flags);
+				flags.AddRange(_toolchain.Flags);
 
 				tasks.Add(new RunTask(_toolchain.Gcc, flags));
 			}
 
 			//Build Cpp sources
-			foreach (string source in _target.Config.CppSources)
+			foreach (string source in sources[SourceType.Cpp])
 			{
 				//Get absolute paths
-				string input = _target.ResolveSourcePath(source);
-				string output = _sources.GetObjectPath(input);
+				string input = _env.GetSourcePath(source);
+				string output = _env.GetObjectPath(source);
 				objects.Add(output);
 
 				List<string> flags = new List<string>
@@ -93,31 +98,32 @@ namespace UBuild.Actions
 					"-c",
 					input,
 					$"-o {output}",
-					$"-I {_sources.Config.SourcesDir}"
+					$"-I {_env.SourcesDirectory}"
 				};
 
 				//Add include dirs
-				foreach (string include in includes)
+				foreach (string include in _exe.IncludeDirs)
 					flags.Add($"-I {include}");
 
 				//Add defines
-				foreach (string define in _target.Config.Defines)
+				foreach (string define in _exe.Defines)
 					flags.Add($"-D {define}");
 
 				//Add flags
-				flags.AddRange(_target.Config.Flags);
-				flags.AddRange(_target.Config.CppFlags);
-				flags.AddRange(_toolchain.Config.Flags);
+				flags.AddRange(_exe.Flags);
+				flags.AddRange(_exe.CppFlags);
+				flags.AddRange(_toolchain.Flags);
+				flags.AddRange(_toolchain.CppFlags);
 
 				tasks.Add(new RunTask(_toolchain.Gpp, flags));
 			}
 
 			//Asm sources
-			foreach (string source in _target.Config.AsmSources)
+			foreach (string source in sources[SourceType.Asm])
 			{
 				//Get absolute paths
-				string input = _target.ResolveSourcePath(source);
-				string output = _sources.GetObjectPath(input);
+				string input = _env.GetSourcePath(source);
+				string output = _env.GetObjectPath(source);
 				objects.Add(output);
 
 				List<string> flags = new List<string>
@@ -129,12 +135,12 @@ namespace UBuild.Actions
 				};
 
 				//Add defines
-				foreach (string define in _target.Config.Defines)
+				foreach (string define in _exe.Defines)
 					flags.Add($"-D {define}");
 
 				//Add flags
-				flags.AddRange(_target.Config.Flags);
-				flags.AddRange(_toolchain.Config.Flags);
+				flags.AddRange(_exe.Flags);
+				flags.AddRange(_toolchain.Flags);
 
 				tasks.Add(new RunTask(_toolchain.As, flags));
 			}
@@ -148,18 +154,18 @@ namespace UBuild.Actions
 				};
 
 				//Add flags
-				foreach (string flag in _target.Config.LinkFlags)
-					flags.Add(_target.Eval(flag));
+				foreach (string flag in _exe.LinkFlags)
+					flags.Add(_exe.Eval(flag));
 
-				flags.AddRange(_toolchain.Config.LinkFlags);
+				flags.AddRange(_toolchain.LinkFlags);
 				tasks.Add(new RunTask(_toolchain.Gpp, flags));
 			}
 
 			//Post build env
 			Dictionary<string, string> env = new Dictionary<string, string>
 			{
-				{ "BinFile", _target.BinFile },
-				{ "OutDir", _target.OutDir },
+				{ "BinFile", _exe.BinFile },
+				{ "OutDir", _exe.OutDir },
 			};
 			foreach (PropertyInfo property in typeof(Toolchain).GetProperties(BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance))
 			{
@@ -171,13 +177,13 @@ namespace UBuild.Actions
 			}
 
 			//Post build
-			foreach (string postbuild in _target.Config.PostBuild)
+			foreach (string postbuild in _exe.PostBuild)
 			{
 				string[] parts = postbuild.Split(':');
-				Debug.Assert(parts.Length == 2);
-				Debug.Assert(parts[0][0] == '$');
+				Trace.Assert(parts.Length == 2);
+				Trace.Assert(parts[0][0] == '$');
 				string bin = typeof(Toolchain).GetProperty(parts[0].Substring(1)).GetValue(_toolchain) as string;
-				List<string> args = parts[1].Split(' ').Select(_target.Eval).Select(_sources.GetAbsoluteSrcPath).ToList();
+				List<string> args = parts[1].Split(' ').Select(_exe.Eval).ToList();
 				tasks.Add(new RunTask(bin, args, env));
 			}
 
@@ -188,6 +194,7 @@ namespace UBuild.Actions
 				if (!Directory.Exists(dir))
 					Directory.CreateDirectory(dir);
 			}
+			Directory.CreateDirectory(Path.GetDirectoryName(OutputFile));
 
 			//View created file
 			tasks.Add(new RunTask("stat", new List<string> { OutputFile }));
@@ -195,7 +202,7 @@ namespace UBuild.Actions
 			//Display and execute
 			foreach (ITask task in tasks)
 			{
-				if (Verbose)
+				if (verbose)
 					task.Display();
 				if (!task.Run())
 					return ActionResult.Failed;
@@ -204,6 +211,24 @@ namespace UBuild.Actions
 			Console.WriteLine("\tSuccessfully built {0}", OutputFile);
 
 			return ActionResult.Success;
+		}
+
+		private static List<string> ExpandedSources(List<string> sources, string sourceDir)
+		{
+			return sources.SelectMany(i =>
+			{
+				if (i.Contains('*'))
+				{
+					string path = Path.GetDirectoryName(i);
+					string search = Path.GetFileName(i);
+					string[] files = Directory.GetFiles(Path.Combine(sourceDir, path), search);
+					return files.Select(i => i.Replace(sourceDir + "/", string.Empty)).ToList();
+				}
+				else
+				{
+					return new List<string>{i};
+				}
+			}).ToList();
 		}
 	}
 }

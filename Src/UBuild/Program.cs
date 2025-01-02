@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using McMaster.Extensions.CommandLineUtils;
 using UBuild.Actions;
 using UBuild.Models;
+using Environment = UBuild.Models.Environment;
 
 public class Program
 {
@@ -19,14 +20,14 @@ public class Program
 	[Argument(0, Description = "Action")]
 	public ActionType Action { get; }
 
-	[Option("-t|--target <path>", Description = "Target to build")]
-	public string Target { get;}
+	[Option("-e|--exe <path>", Description = "Exe to build")]
+	public string Exe { get;}
 
 	[Option("-p|--project <path>", Description = "Project to build")]
-	public string Project { get;}
+	public string Project { get;} = UBuild.Models.Project.ALL;
 
-	[Option("-c|--compiler <path>", Description = "Toolchain to use")]
-	public string Toolchain { get;} = UBuild.Models.Project.ALL_TOOLCHAINS;
+	[Option("-t|--toolchain <path>", Description = "Toolchain to use")]
+	public string Toolchain { get; } = UBuild.Models.Toolchain.ALL;
 
 	[Option("-f|--file <path>", Description = "Package file")]
 	public PackageType PackageType { get;} = PackageType.Zip;
@@ -37,13 +38,13 @@ public class Program
 	private ValidationResult OnValidate()
 	{
 		if (Action == ActionType.None)
-			return new ValidationResult("Muist specify an action");
+			return new ValidationResult("Must specify an action");
 
 		switch (Action)
 		{
 		case ActionType.Build:
-			if (String.IsNullOrWhiteSpace(Target) && String.IsNullOrWhiteSpace(Project))
-				return new ValidationResult("Must specify a target or project");
+			if (String.IsNullOrWhiteSpace(Exe) && String.IsNullOrWhiteSpace(Project))
+				return new ValidationResult("Must specify a exe or project");
 			break;
 
 		case ActionType.Package:
@@ -52,57 +53,75 @@ public class Program
 			break;
 
 		case ActionType.Run:
-			if (String.IsNullOrWhiteSpace(Target))
-				return new ValidationResult("Must specify a target");
+			if (String.IsNullOrWhiteSpace(Exe))
+				return new ValidationResult("Must specify an exe");
 			break;
 		}
 
 		return ValidationResult.Success;
 	}
 
-	private void OnExecute()
+	private int OnExecute()
 	{
-		string sourcesDir = Directory.GetCurrentDirectory();
-		Console.WriteLine("Action: {0}", Action);
+		Console.WriteLine($"Action: {Action}");
+
+		string envFile = Path.Combine(Directory.GetCurrentDirectory(), Environment.FileName);
+		Environment env = Environment.Load(envFile);
+		Console.WriteLine($"\tLoaded: {envFile}");
+
+		//Load project, exe, toolchain
+		Executable exe = env.GetExe(Exe);
+		Project project = env.Projects.SingleOrDefault(i => i.Name == Project);
+		Toolchain toolchain = env.Toolchains.SingleOrDefault(i => i.Name == Toolchain);
 
 		IAction action;
 		switch (Action)
 		{
 			case ActionType.Build:
 			{
-				Sources sources = Sources.Open(sourcesDir);
+				if (Project == UBuild.Models.Project.ALL)
+				{
+					Console.WriteLine($"\tAll Projects");
 
-				if (!string.IsNullOrEmpty(Project))
+					action = new BuildAllAction(env);
+				}
+				else if (!string.IsNullOrEmpty(Project))
 				{
 					Console.WriteLine($"\tProject: {Project}");
-					Project project = sources.GetProject(Project);
-					action = new BuildProjectAction(sources, project);
+
+					if (project == null)
+						throw new Exception("Project not found");
+					action = new BuildProjectAction(env, project);
 				}
 				else
 				{
-					Console.WriteLine($"\tTarget: {Target}");
-					Target target = sources.GetTarget(Target);
-					Toolchain toolchain = sources.GetToolchain(Toolchain);
-					action = new BuildAction(sources, target, toolchain);
+					Console.WriteLine($"\tExe: {Exe}");
+					if (exe == null)
+						throw new Exception("Exe not found");
+					if (toolchain == null)
+						throw new Exception("Toolchain not found");
+					action = new BuildAction(env, exe, toolchain);
 				}
 				break;
 			}
 
 			case ActionType.Package:
 			{
-				Sources sources = Sources.Open(sourcesDir);
-				Project project = sources.GetProject(Project);
-				action = new PackageAction(sources, project, PackageType);
+				Console.WriteLine($"\tProject: {Project}");
+				if (project == null)
+						throw new Exception("Project not found");
+				action = new PackageAction(env, project, PackageType);
 				break;
 			}
 
 			case ActionType.Run:
 			{
-				Sources sources = Sources.Open(sourcesDir);
-				Target target = sources.GetTarget(Target);
-				Toolchain toolchain = sources.GetToolchain(Toolchain);
-
-				action = new BuildRunAction(sources, target, toolchain);
+				Console.WriteLine($"\tExe: {Exe}");
+				if (exe == null)
+						throw new Exception("Exe not found");
+				if (toolchain == null)
+						throw new Exception("Toolchain not found");
+				action = new BuildRunAction(env, exe, toolchain);
 				break;
 			}
 
@@ -110,7 +129,7 @@ public class Program
 				throw new NotImplementedException();
 		}
 
-		action.Verbose = Verbose;
-		action.Run();
+		ActionResult result = action.Run(Verbose);
+		return result == ActionResult.Failed ? 1 : 0;
 	}
 }

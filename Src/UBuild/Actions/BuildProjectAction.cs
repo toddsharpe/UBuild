@@ -2,46 +2,43 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using UBuild.Configs;
 using UBuild.Models;
+using Environment = UBuild.Models.Environment;
 
 namespace UBuild.Actions
 {
 	public class BuildProjectAction : IAction
 	{
-		public bool Verbose { private get; set; }
 		private readonly List<BuildAction> _builds;
 
-		internal BuildProjectAction(Sources sources, Project project)
+		internal BuildProjectAction(Environment env, Project project)
 		{
 			_builds = new List<BuildAction>();
 
-			foreach (var i in project.Targets)
+			foreach (Project.ExeEntry entry in project.Exes)
 			{
-				if (i.Item2 != Project.ALL_TOOLCHAINS)
+				Executable exe = env.GetExe(entry.Name) ?? throw new Exception("Exe not found");
+
+				if (entry.Toolchain == Toolchain.ALL)
 				{
-					Target target = sources.GetTarget(i.Item1);
-					Toolchain toolchain = sources.GetToolchain(i.Item2);
-					_builds.Add(new BuildAction(sources, target, toolchain));
+					foreach (Toolchain toolchain in env.Toolchains)
+					{
+						_builds.Add(new BuildAction(env, exe, toolchain));
+					}
 				}
 				else
 				{
-					foreach (string toolchainName in sources.Config.Toolchains)
-					{
-						Target target = sources.GetTarget(i.Item1);
-						Toolchain toolchain = sources.GetToolchain(toolchainName);
-						_builds.Add(new BuildAction(sources, target, toolchain));
-					}
+					Toolchain toolchain = env.Toolchains.Single(i => i.Name == entry.Toolchain);
+					_builds.Add(new BuildAction(env, exe, toolchain));
 				}
 			}
 		}
 		
-		public ActionResult Run()
+		public ActionResult Run(bool verbose)
 		{
 			foreach (IAction action in _builds)
 			{
-				action.Verbose = Verbose;
-				if (action.Run() == ActionResult.Failed)
+				if (action.Run(verbose) == ActionResult.Failed)
 					return ActionResult.Failed;
 			}
 

@@ -1,0 +1,34 @@
+{
+	"Output": "build",
+	"Sources": "Src",
+	"Configs": "Configs",
+	"Exes": "Exes",
+	"Projects": [
+		{
+			"Name": "Hosted",
+			"Exes": [
+				{ "Name": "Common/MyApp", "Toolchain": "Host" },
+				{ "Name": "Common/MyApp2", "Toolchain": "Host" },
+				{ "Name": "Hosted/MyHosted", "Toolchain": "Host" }
+			],
+			"Configs": [
+				"File1",
+				"Dir1"
+			]
+		},
+		{
+			"Name": "Full",
+			"Exes": [
+				{ "Name": "Common/MyApp", "Toolchain": "ALL" },
+				{ "Name": "Common/MyApp2", "Toolchain": "ALL" },
+				{ "Name": "Hosted/MyHosted", "Toolchain": "Host" }
+			]
+		}
+	],
+	"Toolchains": [
+		{
+			"Name": "Host",
+			"Bin": "/usr/bin"
+		}
+	]
+}
