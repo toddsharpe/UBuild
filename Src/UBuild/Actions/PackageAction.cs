@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using UBuild.Configs;
 using UBuild.Packagers;
 using UBuild.Models;
+using Environment = UBuild.Models.Environment;
 
 namespace UBuild.Actions
 {
@@ -15,27 +15,26 @@ namespace UBuild.Actions
 	
 	public class PackageAction : IAction
 	{
-		public bool Verbose { private get; set; }
-		private readonly Sources _sources;
+		private readonly Environment _env;
 		private readonly Project _project;
 		private readonly PackageType _type;
 
-		internal PackageAction(Sources sources, Project project, PackageType type)
+		internal PackageAction(Environment env, Project project, PackageType type)
 		{
-			_sources = sources;
+			_env = env;
 			_project = project;
 			_type = type;
 		}
 
-		public ActionResult Run()
+		public ActionResult Run(bool verbose)
 		{
-			Console.WriteLine("Packaging {0} for {1}", _project.Config.Name, _type);
+			Console.WriteLine("Packaging {0} for {1}", _project.Name, _type);
 
-			string packageDir = Path.Combine(_sources.OutPath, "packages");
+			string packageDir = Path.Combine(_env.OutputExeDirectory, "packages");
 			if (!Directory.Exists(packageDir))
 				Directory.CreateDirectory(packageDir);
 
-			string destFile = Path.Combine(packageDir, _project.Config.Name);
+			string destFile = Path.Combine(packageDir, _project.Name);
 
 			using (IPackager packager = GetPackager(destFile))
 			{
@@ -47,15 +46,15 @@ namespace UBuild.Actions
 				packager.Init();
 
 				//Add all the target binaries
-				IEnumerable<string> binaries = _project.Config.Targets.Select(i =>
+				IEnumerable<string> binaries = _project.Exes.Select(i =>
 				{
-					Target target = _sources.GetTarget(i);
-					return target.BinFile;
+					Executable target = _env.GetExe(i.Name);
+					return target.Name;
 				});
 				packager.AddEntries("bin", binaries);
 
 				//Add all the configs
-				IEnumerable<string> configs = _project.Config.Configs.Select(i => _sources.ResolvePath(i));
+				IEnumerable<string> configs = _project.Configs.Select(i => Path.Combine(_env.ConfigsDirectory, i));
 				packager.AddEntries("dat", configs);
 
 				Console.WriteLine("\tSuccessfully built {0}", packager.DestFile);

@@ -3,29 +3,23 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using UBuild.Configs;
 using UBuild.Models;
+using Environment = UBuild.Models.Environment;
 
 namespace UBuild.Actions
 {
 	public class BuildRunAction : IAction
 	{
-		public bool Verbose { private get; set; }
 		private readonly BuildAction _action;
-		private readonly Target _target;
-		private readonly Toolchain _toolchain;
 
-		internal BuildRunAction(Sources sources, Target target, Toolchain toolchain)
+		internal BuildRunAction(Environment env, Executable exe, Toolchain toolchain)
 		{
-			_action = new BuildAction(sources, target, toolchain);
-			_target = target;
-			_toolchain = toolchain;
+			_action = new BuildAction(env, exe, toolchain);
 		}
-		
-		public ActionResult Run()
+
+		public ActionResult Run(bool verbose)
 		{
-			_action.Verbose = Verbose;
-			ActionResult result = _action.Run();
+			ActionResult result = _action.Run(verbose);
 			if (result != ActionResult.Success)
 				return result;
 

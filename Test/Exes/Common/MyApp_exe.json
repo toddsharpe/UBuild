@@ -1,0 +1,10 @@
+{
+	"Name": "MyApp",
+	"Sources": [
+		"Common/MyApp/main.c",
+		"Common/MyApp/support.cpp",
+		"shared.cpp",
+		"Common/common.cpp"
+	],
+	"Flags": []
+}

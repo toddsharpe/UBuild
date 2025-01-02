@@ -1,6 +1,0 @@
-OutDir=../build
-ConfigDir=Configs/
-
-[Toolchains]
-Host
-Artyz7
