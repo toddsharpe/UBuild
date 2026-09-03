@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "UBuild": {
+      "commandName": "Project",
+      "commandLineArgs": "build Hosted\\MyApp",
+      "workingDirectory": "C:\\Users\\todds\\GitHub\\toddsharpe\\UBuild\\Test"
+    }
+  }
+}

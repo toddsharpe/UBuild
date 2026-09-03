@@ -1,0 +1,4 @@
+{
+	"Name": "Failing",
+	"Sources": [ "Hosted/Failing/main.c" ]
+}

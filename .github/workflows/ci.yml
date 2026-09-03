@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Build
+      run: dotnet build Src/UBuild.sln -c Release
+
+    # The Test env is the fixture: a real Env_build.json driven end to end with the Host toolchain.
+    - name: Smoke build the Test env
+      working-directory: Test
+      run: ../Src/UBuild/bin/Release/net9.0/UBuild build --project Hosted --toolchain Host --verbose
+
+    # The built binary must exist AND run; its output pins the link (main.c + support.cpp + shared).
+    - name: Run the built binary
+      working-directory: Test
+      run: |
+        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+
+    # Unity batches translation units, so it has to produce the same working binary.
+    - name: Build the Test env as a unity build
+      working-directory: Test
+      run: |
+        ../Src/UBuild/bin/Release/net9.0/UBuild clean
+        ../Src/UBuild/bin/Release/net9.0/UBuild build --project Hosted --toolchain Host --unity --verbose
+        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+
+    # Two toolchains share sources, so this pins that objects are namespaced per toolchain.
+    - name: Build a multi-toolchain project
+      working-directory: Test
+      run: |
+        ../Src/UBuild/bin/Release/net9.0/UBuild clean
+        ../Src/UBuild/bin/Release/net9.0/UBuild build --project Full
+        test -f build_exe/Common/MyApp/MyApp.elf
+        test -f build_exe/Common/MyApp/MyApp.host2.elf
+        test -f build_obj/Host/Common/MyApp/Common/common.o
+        test -f build_obj/Host2/Common/MyApp/Common/common.o
+
+    # An exe whose recipe is mostly its base's, and a step whose argument holds a colon.
+    - name: Extends and pre/post build steps
+      working-directory: Test
+      run: |
+        ../Src/UBuild/bin/Release/net9.0/UBuild clean
+        ../Src/UBuild/bin/Release/net9.0/UBuild build --exe Hosted/Extended --verbose
+        ./build_exe/Hosted/Extended/Extended.elf | grep -x "Extended: 36"
+        test -f build_exe/Hosted/Extended/Extended.elf.step
+
+    # Setting the variable has to win over the fallback the config carries.
+    - name: Toolchain Bin from the environment
+      working-directory: Test
+      env:
+        UBUILD_TEST_BIN: /usr/bin
+      run: |
+        ../Src/UBuild/bin/Release/net9.0/UBuild build --exe Hosted/MyHosted --toolchain HostVar
+        test -f build_exe/Hosted/MyHosted/MyHosted.hostvar.elf
+
+    # Projects overlap, so the default build must do each exe once rather than once per project.
+    - name: Build every project once
+      working-directory: Test
+      run: |
+        ../Src/UBuild/bin/Release/net9.0/UBuild clean
+        ../Src/UBuild/bin/Release/net9.0/UBuild build | grep -c "^Building .* for " | grep -x 14
+
+    # A narrow build re-indexes its own sources and leaves the rest of the tree indexed.
+    - name: compile_commands.json merges
+      working-directory: Test
+      run: |
+        ../Src/UBuild/bin/Release/net9.0/UBuild clean
+        ../Src/UBuild/bin/Release/net9.0/UBuild build --project Full
+        before=$(jq length compile_commands.json)
+        ../Src/UBuild/bin/Release/net9.0/UBuild build --exe Hosted/MyHosted --toolchain Host
+        test "$(jq length compile_commands.json)" = "$before"
+
+    # A typo, a bad name and a failing program are all non-zero, so no step passes having built nothing.
+    - name: Failures exit non-zero
+      working-directory: Test
+      run: |
+        UB=../Src/UBuild/bin/Release/net9.0/UBuild
+
+        # A build that refused. The parse check is the point: a verb this step spells wrong fails too, and
+        # without it these lines go on passing having tested nothing, which is how they survived the rename.
+        fails() {
+          if out=$("$@" 2>&1); then echo "expected failure: $*" >&2; exit 1; fi
+          case "$out" in *"was not matched"*) echo "the verb never parsed, so nothing was tested: $*" >&2; exit 1;; esac
+        }
+
+        # A parse error, which is what these are FOR: an unknown verb, an unknown option, and no verb at all.
+        rejects() { if "$@"; then echo "expected rejection: $*" >&2; exit 1; fi; }
+
+        fails $UB build --exe Nope/Missing
+        fails $UB build --project Hosted --toolchain Bogus
+        fails $UB build --project Bogus
+        fails $UB build --exe Common/MyApp
+        fails $UB run --exe Hosted/Failing
+        rejects $UB Buidl --project Hosted
+        rejects $UB --bogus
+        rejects $UB
+        $UB run --exe Hosted/MyHosted
+        $UB --help
+        $UB build --help
+
+    # One exe and two toolchains: shared, the generated file would be whichever of them ran last.
+    - name: Generated sources are per toolchain and exe
+      working-directory: Test
+      run: |
+        UB=../Src/UBuild/bin/Release/net9.0/UBuild
+        # clean does not reach build_gen, and an earlier step has already stamped every toolchain.
+        $UB clean
+        rm -rf build_gen
+        $UB build --exe Hosted/Stamped --toolchain Host
+        ./build_exe/Hosted/Stamped/Stamped.elf | grep -x "Stamped: Host Host"
+        $UB build --exe Hosted/Stamped --toolchain Host2
+        ./build_exe/Hosted/Stamped/Stamped.host2.elf | grep -x "Stamped: Host2 Host2"
+        # Each toolchain wrote its own, rather than the second overwriting the first.
+        grep -qx '#define STAMP "Host"' build_gen/Host/Stamped/stamp.h
+        grep -qx '#define STAMP "Host2"' build_gen/Host2/Stamped/stamp.h
+        test -f build_obj/Host/Hosted/Stamped/__/build_gen/Host/Stamped/stamp.o
+        test -f build_obj/Host2/Hosted/Stamped/__/build_gen/Host2/Stamped/stamp.o
+
+    # Exes build at once, so two failing together must both be named rather than whichever was noticed first.
+    - name: Every failure is reported, not a sample
+      working-directory: Test
+      env:
+        UBUILD_TEST_BREAK: "1"
+      run: |
+        UB=../Src/UBuild/bin/Release/net9.0/UBuild
+        $UB clean
+        $UB build --project Fallible > out.txt 2>&1 && { echo "expected failure" >&2; exit 1; }
+        grep -qx "Failed (2 of 2): FallibleA (Host), FallibleB (Host)" out.txt
+        # Each exe's diagnostics arrive under its own header rather than interleaved with the other's.
+        test "$(grep -c '^Building Fallible' out.txt)" = 2
+
+    # Releases ship Native AOT; catch AOT-compat regressions (reflection, trimming) here, not at tag time.
+    - name: Install AOT prerequisites
+      run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+    - name: Publish Native AOT
+      run: dotnet publish Src/UBuild/UBuild.csproj -c Release -r linux-x64 -o publish
+
+    - name: Smoke the AOT binary
+      working-directory: Test
+      run: |
+        ../publish/UBuild clean
+        ../publish/UBuild --version | grep -qx 'v[0-9.]*'
+        ../publish/UBuild build --project Hosted --toolchain Host --verbose
+        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+        # Steps reflect over Toolchain, which is the part trimming would take away.
+        ../publish/UBuild build --exe Hosted/Extended
+        test -f build_exe/Hosted/Extended/Extended.elf.step

@@ -1,0 +1,9 @@
+{
+	"Name": "FallibleB",
+	# Its source is generated, and breaks on demand so a concurrent failure has something to fail with.
+	"PreBuild": [ "$Bash: Scripts/Fallible.sh build_gen/$Toolchain/$ExeName FallibleB" ],
+	"Sources": [
+		"Hosted/FallibleB/main.c",
+		"../build_gen/$Toolchain/$ExeName/fallible.c"
+	]
+}

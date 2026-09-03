@@ -1,0 +1,10 @@
+{
+	"Name": "Stamped",
+	# Built by every toolchain, so what the step writes has to be one per toolchain, not one shared.
+	"PreBuild": [ "$Bash: Scripts/Stamp.sh build_gen/$Toolchain/$ExeName $Toolchain" ],
+	"Sources": [
+		"Hosted/Stamped/main.c",
+		"../build_gen/$Toolchain/$ExeName/stamp.c"
+	],
+	"IncludeDirs": [ "build_gen/$Toolchain/$ExeName" ]
+}

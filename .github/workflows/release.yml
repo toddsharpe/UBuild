@@ -1,0 +1,54 @@
+name: Release
+
+# A tag push (v1.0.0) releases a self-contained linux-x64 UBuild; consumers need no .NET runtime.
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  Release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 9.0.x
+
+    # Native AOT link prerequisites (clang is preinstalled on the runner, zlib1g-dev is not guaranteed).
+    - name: Install AOT prerequisites
+      run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+    # Native AOT (PublishAot in the csproj): one native binary, no .NET runtime bundled.
+    # JSON models are source-generated and System.CommandLine is AOT-safe, so trimming is safe.
+    # The tag is the version: the tree carries a placeholder, so a cut is a tag and nothing else.
+    - name: Publish
+      run: dotnet publish Src/UBuild/UBuild.csproj -c Release -r linux-x64 -p:Version="${GITHUB_REF_NAME#v}" -o publish
+
+    # The artifact itself is what gets smoked, not a rebuilt sibling.
+    - name: Smoke the published binary
+      working-directory: Test
+      run: |
+        ../publish/UBuild --version | grep -qx "$GITHUB_REF_NAME"
+        ../publish/UBuild build --project Hosted --toolchain Host --verbose
+        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+        # Steps reflect over Toolchain, which is the part trimming would take away.
+        ../publish/UBuild build --exe Hosted/Extended
+        test -f build_exe/Hosted/Extended/Extended.elf.step
+
+    # The versioned name is the record; the bare one is what releases/latest/download can reach.
+    - name: Pack
+      run: |
+        tar -czf "ubuild-$GITHUB_REF_NAME-linux-x64.tar.gz" -C publish UBuild
+        cp "ubuild-$GITHUB_REF_NAME-linux-x64.tar.gz" ubuild-linux-x64.tar.gz
+
+    - name: Publish release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh release create "$GITHUB_REF_NAME" ubuild-*.tar.gz --title "UBuild $GITHUB_REF_NAME" --generate-notes

@@ -1,0 +1,5 @@
+build_obj/*
+build_exe/*
+
+build_gen/
+out.txt

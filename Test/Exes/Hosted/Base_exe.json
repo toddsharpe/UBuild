@@ -1,0 +1,10 @@
+{
+	"Name": "Base",
+	# No main: this exe is only ever extended, never built on its own.
+	"Sources": [
+		"Hosted/MyHosted/support.cpp",
+		"shared.cpp"
+	],
+	"Defines": [ "FROM_BASE=10" ],
+	"CppFlags": [ "-std=c++20" ]
+}

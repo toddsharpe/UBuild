@@ -1,0 +1,8 @@
+{
+	"Name": "MyHosted",
+	"Sources": [
+		"Hosted/MyHosted/main.c",
+		"Hosted/MyHosted/support.cpp"
+	],
+	"Flags": []
+}

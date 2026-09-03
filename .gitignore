@@ -1,0 +1,10 @@
+.vs
+.vscode
+.claude
+build/
+Src/UBuild/bin
+Src/UBuild/obj
+build_obj/
+build_exe/
+compile_commands.json
+publish/

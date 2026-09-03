@@ -1,0 +1,64 @@
+{
+	"Output": "build",
+	"Sources": "Src",
+	"Configs": "Configs",
+	"Exes": "Exes",
+	"IncludeDirs": [ "Include" ],           # applied to every exe
+	"Defines": [ "VERSION_BUMP=1", "MARKER=\"#1\"" ],   # the '#' here must survive comment stripping
+	"Projects": [
+		{
+			"Name": "Hosted",
+			"Exes": [
+				{ "Name": "Common/MyApp", "Toolchain": "Host" },
+				{ "Name": "Common/MyApp2", "Toolchain": "Host" },
+				{ "Name": "Hosted/MyHosted", "Toolchain": "Host" }
+			],
+			"Configs": [
+				"File1",
+				"Dir1"
+			]
+		},
+		{
+			# Two exes that fail together when UBUILD_TEST_BREAK is set, and build otherwise.
+			"Name": "Fallible",
+			"Exes": [
+				{ "Name": "Hosted/FallibleA", "Toolchain": "Host" },
+				{ "Name": "Hosted/FallibleB", "Toolchain": "Host" }
+			]
+		},
+		{
+			# Extended inherits from Hosted/Base; Failing exits non-zero when run.
+			"Name": "Extras",
+			"Exes": [
+				{ "Name": "Hosted/Extended", "Toolchain": "Host" },
+				{ "Name": "Hosted/Failing", "Toolchain": "Host" }
+			]
+		},
+		{
+			"Name": "Full",
+			"Exes": [
+				{ "Name": "Common/MyApp", "Toolchain": "ALL" },
+				{ "Name": "Common/MyApp2", "Toolchain": "ALL" },
+				{ "Name": "Hosted/MyHosted", "Toolchain": "Host" },
+				{ "Name": "Hosted/Stamped", "Toolchain": "ALL" }
+			]
+		}
+	],
+	"Toolchains": [
+		{
+			"Name": "Host",
+			"Bin": "/usr/bin"
+		},
+		{
+			# Bin comes from the environment, with a fallback so the config still stands on its own.
+			"Name": "HostVar",
+			"Bin": "${UBUILD_TEST_BIN:-/usr/bin}",
+			"Ext": ".hostvar.elf"
+		},
+		{
+			"Name": "Host2",
+			"Bin": "/usr/bin",
+			"Ext": ".host2.elf"
+		}
+	]
+}

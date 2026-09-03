@@ -1,0 +1,8 @@
+{
+	"Name": "ArtyApp",
+	"Sources": [
+		"Arty7/ArtyApp/main.c",
+		"Arty7/ArtyApp/support.cpp"
+	],
+	"Flags": []
+}

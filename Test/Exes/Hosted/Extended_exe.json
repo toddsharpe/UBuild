@@ -1,0 +1,10 @@
+{
+	"Name": "Extended",
+	# Sources, defines and flags are the base's plus these.
+	"Extends": "Hosted/Base",
+	"Sources": [ "Hosted/Extended/main.c" ],
+	"Defines": [ "FROM_DERIVED=20" ],
+
+	# Reflection over Toolchain, an argument containing a colon, and the toolchain environment.
+	"PostBuild": [ "$Bash: Scripts/Step.sh http://example.com/x" ]
+}
