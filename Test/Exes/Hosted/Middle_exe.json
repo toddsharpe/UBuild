@@ -1,0 +1,6 @@
+{
+	"Name": "Middle",
+	# A base that is itself derived: Base's lists plus a define, and no main, since only Chained builds it.
+	"Extends": "Hosted/Base",
+	"Defines": [ "FROM_MIDDLE=300" ]
+}

@@ -179,8 +179,9 @@ down to the lines that are actually about that board.
 ```
 
 Lists concatenate, base first; `Name`, `Unity` and `UnityBatchSize` take the derived value when it
-sets one. It is one level deep: a base that itself extends something is an error. A base exe is
-never built on its own, so it needs no `main`.
+sets one. A base may extend another in turn, as deep as the recipes chain, with the outermost base's
+lists first; a chain that loops back on itself is an error. A base exe is never built on its own, so
+it needs no `main`.
 
 ### Unity builds
 
