@@ -76,7 +76,7 @@ jobs:
       working-directory: Test
       run: |
         ../Src/UBuild/bin/Release/net9.0/UBuild clean
-        ../Src/UBuild/bin/Release/net9.0/UBuild build | grep -c "^Building .* for " | grep -x 14
+        ../Src/UBuild/bin/Release/net9.0/UBuild build | grep -c "^Building .* for " | grep -x 15
 
     # A narrow build re-indexes its own sources and leaves the rest of the tree indexed.
     - name: compile_commands.json merges
