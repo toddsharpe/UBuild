@@ -45,18 +45,20 @@ namespace UBuild.Models
 
 			Executable exe = Config.Config.ReadJson(file, Config.UBuildJsonContext.Default.Executable);
 
-			//One level of inheritance, so a board's recipe is its own lines rather than the shared skeleton again
-			if (!string.IsNullOrWhiteSpace(exe.Extends))
+			//Inheritance, as deep as the recipes chain, so a board's recipe is its own lines over a family's over the shared skeleton
+			List<string> chain = new List<string> { file };
+			while (!string.IsNullOrWhiteSpace(exe.Extends))
 			{
 				string baseFile = Path.Combine(ExeDirectory, exe.Extends + "_exe.json");
 				if (!File.Exists(baseFile))
-					throw new Exception($"{file} extends '{exe.Extends}', but there is no {baseFile}");
+					throw new Exception($"{chain[^1]} extends '{exe.Extends}', but there is no {baseFile}");
+				if (chain.Contains(baseFile))
+					throw new Exception($"{baseFile} extends itself through {string.Join(" -> ", chain)}");
+				chain.Add(baseFile);
 
 				Executable basis = Config.Config.ReadJson(baseFile, Config.UBuildJsonContext.Default.Executable);
-				if (!string.IsNullOrWhiteSpace(basis.Extends))
-					throw new Exception($"{baseFile} extends '{basis.Extends}', and Extends is one level only");
-
 				exe = Executable.Merge(basis, exe);
+				exe.Extends = basis.Extends;
 			}
 
 			exe.OutDir = Path.Combine(OutputExeDirectory, path);

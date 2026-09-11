@@ -1,0 +1,7 @@
+{
+	"Name": "Chained",
+	# Two levels up: Middle's lists, which are Base's plus its own, then these.
+	"Extends": "Hosted/Middle",
+	"Sources": [ "Hosted/Chained/main.c" ],
+	"Defines": [ "FROM_CHAINED=4000" ]
+}

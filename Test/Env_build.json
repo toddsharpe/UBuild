@@ -27,10 +27,11 @@
 			]
 		},
 		{
-			# Extended inherits from Hosted/Base; Failing exits non-zero when run.
+			# Extended inherits from Hosted/Base, Chained from Middle from Base; Failing exits non-zero when run.
 			"Name": "Extras",
 			"Exes": [
 				{ "Name": "Hosted/Extended", "Toolchain": "Host" },
+				{ "Name": "Hosted/Chained", "Toolchain": "Host" },
 				{ "Name": "Hosted/Failing", "Toolchain": "Host" }
 			]
 		},
