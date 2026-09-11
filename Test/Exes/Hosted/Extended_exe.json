@@ -6,5 +6,5 @@
 	"Defines": [ "FROM_DERIVED=20" ],
 
 	# Reflection over Toolchain, an argument containing a colon, and the toolchain environment.
-	"PostBuild": [ "$Bash: Scripts/Step.sh http://example.com/x" ]
+	"PostBuild": [ "$Bash: Scripts/Step.sh http://example.com/x", "$Python: Scripts/Step.py http://example.com/y" ]
 }
