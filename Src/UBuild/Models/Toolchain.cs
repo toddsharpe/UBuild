@@ -30,6 +30,7 @@ namespace UBuild.Models
 		public string Stat => "stat";
 		public string Hexdump => "hexdump";
 		public string Bash => "bash";
+		public string Python => "python3";
 		public string Ext { get; set; } = ".elf";
 	}
 }

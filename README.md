@@ -220,13 +220,13 @@ Things to know before turning it on:
 ### Pre and post build steps
 
 A step is `$ToolchainProperty: args`, where the property names a tool on the toolchain (`$Gcc`, `$ObjCopy`,
-`$ObjDump`, `$Size`, `$Stat`, `$Bash`, ...). Arguments expand `$BinFile`, `$OutDir`, `$ExeName` and
+`$ObjDump`, `$Size`, `$Stat`, `$Bash`, `$Python`, ...). Arguments expand `$BinFile`, `$OutDir`, `$ExeName` and
 `$Toolchain`, and the
 same values are exported as environment variables along with every toolchain path, plus `$SrcDir` and
 `$OutFile` — the built artifact, extension included, which `$BinFile` does not carry.
 
 Only the first colon separates the tool from its arguments, so an argument may contain one. Steps run
-without a shell, so redirection and pipelines belong in a script reached through `$Bash`.
+without a shell, so redirection and pipelines belong in a script reached through `$Bash` or `$Python`.
 
 ## Editor support
 
