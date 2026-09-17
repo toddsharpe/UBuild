@@ -11,6 +11,7 @@ namespace UBuild.Actions
 	internal class BuildProjectAction : IAction
 	{
 		private readonly List<IAction> _builds;
+		private readonly ProjectSteps _steps;
 		private readonly int _jobs;
 		public string Label => string.Join(", ", _builds.Select(i => i.Label));
 
@@ -22,6 +23,7 @@ namespace UBuild.Actions
 				throw new Exception($"Project '{project.Name}' builds nothing with toolchain '{only}'");
 
 			_builds = steps.Select(i => i.Action).ToList();
+			_steps = new ProjectSteps(env, project, options, only, key => steps.First(i => i.Key == key).Action);
 		}
 
 		//Keyed by exe and by how it is built, so BuildAllAction can drop what an earlier project already covered
@@ -62,7 +64,8 @@ namespace UBuild.Actions
 
 		public ActionResult Run(bool verbose, Output output)
 		{
-			return Concurrent.Run(_builds, verbose, output, _jobs);
+			ActionResult result = Concurrent.Run(_builds, verbose, output, _jobs, out HashSet<IAction> failures);
+			return _steps.Run(failures, verbose, output) == ActionResult.Failed ? ActionResult.Failed : result;
 		}
 	}
 }

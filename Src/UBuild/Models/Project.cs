@@ -18,5 +18,7 @@ namespace UBuild.Models
 		public string Name { get; set; }
 		public List<ExeEntry> Exes { get; set; }
 		public List<string> Configs { get; set; }
+		//Run once every exe above has built in the same invocation, however the build was asked for
+		public List<string> PostBuild { get; set; } = new List<string>();
 	}
 }

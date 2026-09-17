@@ -127,6 +127,35 @@ names it rather than showing a gap.
 { "Name": "Stm32", "Bin": "${ARM_GCC_BIN:-/usr/bin}", "Prefix": "arm-none-eabi-" }
 ```
 
+### Project post-build steps
+
+A project can run steps once every exe it lists has built, such as copying a board's images where it
+fetches them from:
+
+```json
+{
+    "Name": "WifiNucleo",
+    "Exes": [
+        { "Name": "Stm32/Bootloader_WifiNucleo", "Toolchain": "Stm32" },
+        { "Name": "Stm32/WifiNucleo", "Toolchain": "Stm32" }
+    ],
+    "PostBuild": [ "$Bash: Scripts/publish.sh" ]
+}
+```
+
+The steps belong to the project rather than to a command. They run after `build -p WifiNucleo`, and after
+a plain `build` once all the builds are done, in project order. They do not run when the project was only
+partly built: `-e` on one of its exes, a `-t` that leaves one of them out, or an exe of its that failed.
+A failing step fails the build. A project has no single toolchain, so a step is `$Bash:` or `$Python:`.
+
+A step gets these in its environment:
+
+| Variable | Value |
+| --- | --- |
+| `Project` | The project's name. |
+| `Exes` | `name:toolchain` per exe, space separated (`name:script` for an exe a script builds). |
+| `OutputExeDir` | The absolute `build_exe` directory. |
+
 ## Exe files
 
 `Exes/Hosted/MyHosted_exe.json` describes one binary. Sources are relative to the sources directory and
