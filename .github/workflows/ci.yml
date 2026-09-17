@@ -147,6 +147,37 @@ jobs:
         # Each exe's diagnostics arrive under its own header rather than interleaved with the other's.
         test "$(grep -c '^Building Fallible' out.txt)" = 2
 
+    # A project's PostBuild runs once all of its exes have built, however they were asked for, and never after part of them.
+    - name: Project post-build steps
+      working-directory: Test
+      run: |
+        UB=../Src/UBuild/bin/Release/net9.0/UBuild
+        $UB clean
+        $UB build --project Published
+        grep -qx "arg=http://example.com/z" build_exe/Published.published
+        grep -qx "Exes=Hosted/MyHosted:Host Common/MyApp2:Host2" build_exe/Published.published
+        grep -qx "OutputExeDir=$PWD/build_exe" build_exe/Published.published
+
+        # A toolchain filter that drops an exe, and a lone exe, are the project only in part.
+        $UB clean
+        $UB build --project Published --toolchain Host | grep -q "^Skipping PostBuild for Published"
+        $UB build --exe Hosted/MyHosted
+        test ! -f build_exe/Published.published
+
+        # The whole tree builds every project, so each one's steps run.
+        $UB clean
+        $UB build
+        test -f build_exe/Published.published
+        test -f build_exe/Fallible.published
+
+        # An exe that failed skips its project's steps; a step that fails fails the build.
+        $UB clean
+        UBUILD_TEST_BREAK=1 $UB build --project Fallible > out.txt 2>&1 && { echo "expected failure" >&2; exit 1; }
+        grep -q "^Skipping PostBuild for Fallible: failed" out.txt
+        test ! -f build_exe/Fallible.published
+        UBUILD_TEST_PUBLISH_FAIL=1 $UB build --project Published && { echo "expected failure" >&2; exit 1; }
+        true
+
     # Releases ship Native AOT; catch AOT-compat regressions (reflection, trimming) here, not at tag time.
     - name: Install AOT prerequisites
       run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev

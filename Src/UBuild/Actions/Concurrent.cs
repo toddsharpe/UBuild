@@ -8,13 +8,26 @@ namespace UBuild.Actions
 		//Exes share nothing once each generates into its own directory, so they build at once
 		internal static ActionResult Run(IList<IAction> builds, bool verbose, Output output, int jobs)
 		{
+			return Run(builds, verbose, output, jobs, out _);
+		}
+
+		//The failures by action as well, so a project can tell whether every one of its own exes built
+		internal static ActionResult Run(IList<IAction> builds, bool verbose, Output output, int jobs, out HashSet<IAction> failures)
+		{
+			failures = new HashSet<IAction>();
 			if (builds.Count == 0)
 				return ActionResult.Success;
 
 			//One exe has nothing to interleave with, so it streams as it goes
 			if (builds.Count == 1)
-				return builds[0].Run(verbose, output);
+			{
+				ActionResult result = builds[0].Run(verbose, output);
+				if (result == ActionResult.Failed)
+					failures.Add(builds[0]);
+				return result;
+			}
 
+			HashSet<IAction> dropped = failures;
 			List<string> broken = new List<string>();
 			ParallelOptions options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, jobs) };
 
@@ -39,7 +52,10 @@ namespace UBuild.Actions
 					return;
 
 				lock (broken)
+				{
 					broken.Add(action.Label);
+					dropped.Add(action);
+				}
 			});
 
 			if (broken.Count == 0)

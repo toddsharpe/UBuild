@@ -24,7 +24,9 @@
 			"Exes": [
 				{ "Name": "Hosted/FallibleA", "Toolchain": "Host" },
 				{ "Name": "Hosted/FallibleB", "Toolchain": "Host" }
-			]
+			],
+			# Never runs while an exe above fails.
+			"PostBuild": [ "$Bash: Scripts/Publish.sh fallible" ]
 		},
 		{
 			# Extended inherits from Hosted/Base, Chained from Middle from Base; Failing exits non-zero when run.
@@ -34,6 +36,15 @@
 				{ "Name": "Hosted/Chained", "Toolchain": "Host" },
 				{ "Name": "Hosted/Failing", "Toolchain": "Host" }
 			]
+		},
+		{
+			# Two toolchains, so a -t leaves one exe out; the step runs only once both have built.
+			"Name": "Published",
+			"Exes": [
+				{ "Name": "Hosted/MyHosted", "Toolchain": "Host" },
+				{ "Name": "Common/MyApp2", "Toolchain": "Host2" }
+			],
+			"PostBuild": [ "$Bash: Scripts/Publish.sh http://example.com/z" ]
 		},
 		{
 			"Name": "Full",
