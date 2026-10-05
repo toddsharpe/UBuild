@@ -32,7 +32,7 @@ jobs:
     - name: Run the built binary
       working-directory: Test
       run: |
-        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+        ./build/exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
 
     # Unity batches translation units, so it has to produce the same working binary.
     - name: Build the Test env as a unity build
@@ -40,7 +40,7 @@ jobs:
       run: |
         ../Src/UBuild/bin/Release/net9.0/UBuild clean
         ../Src/UBuild/bin/Release/net9.0/UBuild build --project Hosted --toolchain Host --unity --verbose
-        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+        ./build/exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
 
     # Two toolchains share sources, so this pins that objects are namespaced per toolchain.
     - name: Build a multi-toolchain project
@@ -48,10 +48,10 @@ jobs:
       run: |
         ../Src/UBuild/bin/Release/net9.0/UBuild clean
         ../Src/UBuild/bin/Release/net9.0/UBuild build --project Full
-        test -f build_exe/Common/MyApp/MyApp.elf
-        test -f build_exe/Common/MyApp/MyApp.host2.elf
-        test -f build_obj/Host/Common/MyApp/Common/common.o
-        test -f build_obj/Host2/Common/MyApp/Common/common.o
+        test -f build/exe/Common/MyApp/MyApp.elf
+        test -f build/exe/Common/MyApp/MyApp.host2.elf
+        test -f build/obj/Host/Common/MyApp/Common/common.o
+        test -f build/obj/Host2/Common/MyApp/Common/common.o
 
     # An exe whose recipe is mostly its base's, and a step whose argument holds a colon.
     - name: Extends and pre/post build steps
@@ -59,8 +59,8 @@ jobs:
       run: |
         ../Src/UBuild/bin/Release/net9.0/UBuild clean
         ../Src/UBuild/bin/Release/net9.0/UBuild build --exe Hosted/Extended --verbose
-        ./build_exe/Hosted/Extended/Extended.elf | grep -x "Extended: 36"
-        test -f build_exe/Hosted/Extended/Extended.elf.step
+        ./build/exe/Hosted/Extended/Extended.elf | grep -x "Extended: 36"
+        test -f build/exe/Hosted/Extended/Extended.elf.step
 
     # Setting the variable has to win over the fallback the config carries.
     - name: Toolchain Bin from the environment
@@ -69,7 +69,7 @@ jobs:
         UBUILD_TEST_BIN: /usr/bin
       run: |
         ../Src/UBuild/bin/Release/net9.0/UBuild build --exe Hosted/MyHosted --toolchain HostVar
-        test -f build_exe/Hosted/MyHosted/MyHosted.hostvar.elf
+        test -f build/exe/Hosted/MyHosted/MyHosted.hostvar.elf
 
     # Projects overlap, so the default build must do each exe once rather than once per project.
     - name: Build every project once
@@ -125,14 +125,14 @@ jobs:
         $UB clean
         rm -rf build_gen
         $UB build --exe Hosted/Stamped --toolchain Host
-        ./build_exe/Hosted/Stamped/Stamped.elf | grep -x "Stamped: Host Host"
+        ./build/exe/Hosted/Stamped/Stamped.elf | grep -x "Stamped: Host Host"
         $UB build --exe Hosted/Stamped --toolchain Host2
-        ./build_exe/Hosted/Stamped/Stamped.host2.elf | grep -x "Stamped: Host2 Host2"
+        ./build/exe/Hosted/Stamped/Stamped.host2.elf | grep -x "Stamped: Host2 Host2"
         # Each toolchain wrote its own, rather than the second overwriting the first.
         grep -qx '#define STAMP "Host"' build_gen/Host/Stamped/stamp.h
         grep -qx '#define STAMP "Host2"' build_gen/Host2/Stamped/stamp.h
-        test -f build_obj/Host/Hosted/Stamped/__/build_gen/Host/Stamped/stamp.o
-        test -f build_obj/Host2/Hosted/Stamped/__/build_gen/Host2/Stamped/stamp.o
+        test -f build/obj/Host/Hosted/Stamped/__/build_gen/Host/Stamped/stamp.o
+        test -f build/obj/Host2/Hosted/Stamped/__/build_gen/Host2/Stamped/stamp.o
 
     # Exes build at once, so two failing together must both be named rather than whichever was noticed first.
     - name: Every failure is reported, not a sample
@@ -154,27 +154,27 @@ jobs:
         UB=../Src/UBuild/bin/Release/net9.0/UBuild
         $UB clean
         $UB build --project Published
-        grep -qx "arg=http://example.com/z" build_exe/Published.published
-        grep -qx "Exes=Hosted/MyHosted:Host Common/MyApp2:Host2" build_exe/Published.published
-        grep -qx "OutputExeDir=$PWD/build_exe" build_exe/Published.published
+        grep -qx "arg=http://example.com/z" build/exe/Published.published
+        grep -qx "Exes=Hosted/MyHosted:Host Common/MyApp2:Host2" build/exe/Published.published
+        grep -qx "OutputExeDir=$PWD/build/exe" build/exe/Published.published
 
         # A toolchain filter that drops an exe, and a lone exe, are the project only in part.
         $UB clean
         $UB build --project Published --toolchain Host | grep -q "^Skipping PostBuild for Published"
         $UB build --exe Hosted/MyHosted
-        test ! -f build_exe/Published.published
+        test ! -f build/exe/Published.published
 
         # The whole tree builds every project, so each one's steps run.
         $UB clean
         $UB build
-        test -f build_exe/Published.published
-        test -f build_exe/Fallible.published
+        test -f build/exe/Published.published
+        test -f build/exe/Fallible.published
 
         # An exe that failed skips its project's steps; a step that fails fails the build.
         $UB clean
         UBUILD_TEST_BREAK=1 $UB build --project Fallible > out.txt 2>&1 && { echo "expected failure" >&2; exit 1; }
         grep -q "^Skipping PostBuild for Fallible: failed" out.txt
-        test ! -f build_exe/Fallible.published
+        test ! -f build/exe/Fallible.published
         UBUILD_TEST_PUBLISH_FAIL=1 $UB build --project Published && { echo "expected failure" >&2; exit 1; }
         true
 
@@ -191,7 +191,7 @@ jobs:
         ../publish/UBuild clean
         ../publish/UBuild --version | grep -qx 'v[0-9.]*'
         ../publish/UBuild build --project Hosted --toolchain Host --verbose
-        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+        ./build/exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
         # Steps reflect over Toolchain, which is the part trimming would take away.
         ../publish/UBuild build --exe Hosted/Extended
-        test -f build_exe/Hosted/Extended/Extended.elf.step
+        test -f build/exe/Hosted/Extended/Extended.elf.step
