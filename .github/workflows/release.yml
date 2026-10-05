@@ -37,10 +37,10 @@ jobs:
       run: |
         ../publish/UBuild --version | grep -qx "$GITHUB_REF_NAME"
         ../publish/UBuild build --project Hosted --toolchain Host --verbose
-        ./build_exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
+        ./build/exe/Hosted/MyHosted/MyHosted.elf | grep -x "Version: 3"
         # Steps reflect over Toolchain, which is the part trimming would take away.
         ../publish/UBuild build --exe Hosted/Extended
-        test -f build_exe/Hosted/Extended/Extended.elf.step
+        test -f build/exe/Hosted/Extended/Extended.elf.step
 
     # The versioned name is the record; the bare one is what releases/latest/download can reach.
     - name: Pack

@@ -65,8 +65,8 @@ Env_build.json          the environment: directories, projects, toolchains
 Exes/<path>_exe.json    one file per exe: sources and flags
 Src/                    sources ("Sources")
 Configs/                files packaged into dat/ ("Configs")
-build_obj/              objects, per toolchain and exe ("Output" + _obj)
-build_exe/              linked binaries ("Output" + _exe)
+build/obj/              objects, per toolchain and exe ("Output"/obj)
+build/exe/              linked binaries ("Output"/exe)
 ```
 
 All config files are JSON and accept `#` line comments.
@@ -154,7 +154,7 @@ A step gets these in its environment:
 | --- | --- |
 | `Project` | The project's name. |
 | `Exes` | `name:toolchain` per exe, space separated (`name:script` for an exe a script builds). |
-| `OutputExeDir` | The absolute `build_exe` directory. |
+| `OutputExeDir` | The absolute `build/exe` directory. |
 
 ## Exe files
 
@@ -190,7 +190,7 @@ whoever else names the same path:
 ```
 
 `.c` compiles with gcc, `.cc`/`.cpp` with g++, `.s` with gcc as assembler; any other extension is an
-error rather than a silently dropped file. Objects land under `build_obj/<toolchain>/<exe>/`, so the
+error rather than a silently dropped file. Objects land under `build/obj/<toolchain>/<exe>/`, so the
 same source used by two exes or two toolchains never collides.
 
 ### Extends
@@ -232,7 +232,7 @@ UBuild build -p FlightH7 --no-unity
 ```
 
 Only C++ batches. C and assembly always compile on their own, and generated files land in
-`build_obj/<toolchain>/<exe>/unity_N.cpp` so `clean` removes them.
+`build/obj/<toolchain>/<exe>/unity_N.cpp` so `clean` removes them.
 
 Things to know before turning it on:
 

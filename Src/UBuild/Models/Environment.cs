@@ -19,8 +19,8 @@ namespace UBuild.Models
 		public List<Script> Scripts { get; set;} = new List<Script>();
 		public List<Toolchain> Toolchains { get; set; } = new List<Toolchain>();
 
-		internal string OutputObj => Output + "_obj";
-		internal string OutputExe => Output + "_exe";
+		internal string OutputObj => Path.Combine(Output, "obj");
+		internal string OutputExe => Path.Combine(Output, "exe");
 
 		internal string SourcesDirectory => Path.Combine(Directory, Sources);
 		internal string OutputObjectDirectory => Path.Combine(Directory, OutputObj);
